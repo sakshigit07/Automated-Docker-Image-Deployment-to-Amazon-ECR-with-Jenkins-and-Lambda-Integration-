@@ -1,0 +1,13 @@
+{
+  "name": "cozy-bean-cafe-mysql",
+  "version": "1.0.0",
+  "description": "DevOps Project 4 sample web app using MySQL",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.9.2"
+  }
+}
