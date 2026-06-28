@@ -8,7 +8,7 @@ pipeline {
         IMAGE_NAME     = 'automated-docker-image-deployment'
         LAMBDA_NAME    = 'ecr-deployment-log'        
         // Dynamic string construction for your Private ECR Registry
-        REGISTRY_URL   = "203637463537.dkr.ecr.us-west-1.amazonaws.com/automated-docker-image-deployment"
+        REGISTRY_URL   = "203637463537.dkr.ecr.us-west-1.amazonaws.com"
     }
     
     stages {
@@ -32,7 +32,6 @@ pipeline {
         stage('Amazon ECR Login & Push') {
             steps {
                 echo 'Authenticating with AWS Private ECR via IAM Role...'
-                // Uses the EC2 instance profile to safely fetch a 12-hour login token
                 sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY_URL}"
                 
                 echo 'Pushing image to AWS Private Repository...'
