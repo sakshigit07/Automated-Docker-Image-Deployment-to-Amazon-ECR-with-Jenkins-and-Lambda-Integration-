@@ -6,9 +6,9 @@ pipeline {
         AWS_ACCOUNT_ID = '203637463537' 
         AWS_REGION     = 'us-west-1'
         IMAGE_NAME     = 'automated-docker-image-deployment'
-        
+        LAMBDA_NAME    = 'ecr-deployment-log'        
         // Dynamic string construction for your Private ECR Registry
-        REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        REGISTRY_URL   = "203637463537.dkr.ecr.us-west-1.amazonaws.com/automated-docker-image-deployment"
     }
     
     stages {
@@ -48,6 +48,27 @@ pipeline {
                 sh "docker rmi ${IMAGE_NAME}:${BUILD_NUMBER}"
                 sh "docker rmi ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER}"
                 sh "docker rmi ${REGISTRY_URL}/${IMAGE_NAME}:latest"
+            }
+        }
+    }
+post {
+        success {
+            script {
+                echo "Pipeline passed successfully! Constructing webhook payload for AWS Lambda..."
+                
+                // Formulate a clean JSON payload representing your app build state
+                def payload = """{
+                    "repository": "${IMAGE_NAME}",
+                    "build_number": "${BUILD_NUMBER}",
+                    "tag": "latest",
+                    "status": "SUCCESS"
+                }"""
+                
+                echo "Invoking Lambda Function: ${LAMBDA_NAME}..."
+                // Executes the clean CLI invoke utility, passing down data context safely
+                sh "aws lambda invoke --function-name ${LAMBDA_NAME} --region ${AWS_REGION} --payload '${payload}' --cli-binary-format raw-in-base64-out response.json"
+                
+                echo "Lambda function responded successfully! Response dumped to response.json"
             }
         }
     }
