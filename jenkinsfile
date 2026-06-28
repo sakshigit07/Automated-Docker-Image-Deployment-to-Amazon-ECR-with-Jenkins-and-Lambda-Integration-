@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+    
+    environment {
+        // 🛑 REPLACE THESE WITH YOUR ACTUAL VALUES FROM YOUR TERRAFORM OUTPUT
+        AWS_ACCOUNT_ID = '203637463537' 
+        AWS_REGION     = 'us-west-1'
+        IMAGE_NAME     = 'automated-docker-image-deployment'
+        
+        // Dynamic string construction for your Private ECR Registry
+        REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    }
+    
+    stages {
+        stage('Pull Code') {
+            steps {
+                echo 'Pulling application code from GitHub...'
+                checkout scm
+            }
+        }
+        
+        stage('Docker Build') {
+            steps {
+                echo "Building Docker image using optimized cache layers..."
+                // Builds the image using your updated /app working directory Dockerfile
+                sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} ."
+                sh "docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                sh "docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${REGISTRY_URL}/${IMAGE_NAME}:latest"
+            }
+        }
+        
+        stage('Amazon ECR Login & Push') {
+            steps {
+                echo 'Authenticating with AWS Private ECR via IAM Role...'
+                // Uses the EC2 instance profile to safely fetch a 12-hour login token
+                sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY_URL}"
+                
+                echo 'Pushing image to AWS Private Repository...'
+                sh "docker push ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                sh "docker push ${REGISTRY_URL}/${IMAGE_NAME}:latest"
+            }
+        }
+        
+        stage('Clean Local Workspace') {
+            steps {
+                echo 'Cleaning up built images from Jenkins server to save disk space...'
+                // Keeps your EC2 instance clean so your storage never fills up
+                sh "docker rmi ${IMAGE_NAME}:${BUILD_NUMBER}"
+                sh "docker rmi ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                sh "docker rmi ${REGISTRY_URL}/${IMAGE_NAME}:latest"
+            }
+        }
+    }
+}
