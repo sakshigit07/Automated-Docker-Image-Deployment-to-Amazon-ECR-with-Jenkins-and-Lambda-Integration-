@@ -2,12 +2,10 @@ pipeline {
     agent any
     
     environment {
-        // 🛑 REPLACE THESE WITH YOUR ACTUAL VALUES FROM YOUR TERRAFORM OUTPUT
         AWS_ACCOUNT_ID = '203637463537' 
         AWS_REGION     = 'us-west-1'
         IMAGE_NAME     = 'automated-docker-image-deployment'
         LAMBDA_NAME    = 'ecr-deployment-log'        
-        // Dynamic string construction for your Private ECR Registry
         REGISTRY_URL   = "203637463537.dkr.ecr.us-west-1.amazonaws.com"
     }
     
@@ -22,7 +20,6 @@ pipeline {
         stage('Docker Build') {
             steps {
                 echo "Building Docker image using optimized cache layers..."
-                // Builds the image using your updated /app working directory Dockerfile
                 sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} ."
                 sh "docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER}"
                 sh "docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${REGISTRY_URL}/${IMAGE_NAME}:latest"
@@ -43,7 +40,6 @@ pipeline {
         stage('Clean Local Workspace') {
             steps {
                 echo 'Cleaning up built images from Jenkins server to save disk space...'
-                // Keeps your EC2 instance clean so your storage never fills up
                 sh "docker rmi ${IMAGE_NAME}:${BUILD_NUMBER}"
                 sh "docker rmi ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER}"
                 sh "docker rmi ${REGISTRY_URL}/${IMAGE_NAME}:latest"
@@ -55,7 +51,6 @@ post {
             script {
                 echo "Pipeline passed successfully! Constructing webhook payload for AWS Lambda..."
                 
-                // Formulate a clean JSON payload representing your app build state
                 def payload = """{
                     "repository": "${IMAGE_NAME}",
                     "build_number": "${BUILD_NUMBER}",
@@ -64,7 +59,6 @@ post {
                 }"""
                 
                 echo "Invoking Lambda Function: ${LAMBDA_NAME}..."
-                // Executes the clean CLI invoke utility, passing down data context safely
                 sh "aws lambda invoke --function-name ${LAMBDA_NAME} --region ${AWS_REGION} --payload '${payload}' --cli-binary-format raw-in-base64-out response.json"
                 
                 echo "Lambda function responded successfully! Response dumped to response.json"
